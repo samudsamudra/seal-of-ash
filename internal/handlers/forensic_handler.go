@@ -3,7 +3,10 @@ package handlers
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/http"
+	"time"
+
 	"seal-of-ash/internal/database"
 	"seal-of-ash/internal/models"
 	"seal-of-ash/internal/utils"
@@ -52,11 +55,21 @@ func SummonAshes(c *gin.Context) {
 
 func VerifyAshChain(c *gin.Context) {
 	var ashes []models.ForensicAsh
-	database.ForensicDB.Order("created_at asc").Find(&ashes)
+	database.ForensicDB.Order("created_at asc, id asc").Find(&ashes)
+
+	// kalau belum ada abu sama sekali
+	if len(ashes) == 0 {
+		c.JSON(200, gin.H{
+			"status":  "empty",
+			"message": "The ash vault is silent. No records have been forged yet.",
+		})
+		return
+	}
 
 	prev := "GENESIS"
 
 	for i, ash := range ashes {
+		// bangun ulang hash dari data yang ada
 		payload := append([]byte(prev), ash.Snapshot...)
 		payload = append(payload, []byte(ash.Action)...)
 		payload = append(payload, []byte(ash.EntityType)...)
@@ -66,10 +79,32 @@ func VerifyAshChain(c *gin.Context) {
 		expected := hex.EncodeToString(sum[:])
 
 		if ash.Hash != expected {
-			c.JSON(500, gin.H{
-				"status": "corrupted",
-				"at":     i,
-				"id":     ash.ID,
+			// ambil data user pelaku
+			var user models.User
+			database.ActiveDB.First(&user, "id = ?", ash.ActorID)
+
+			detectedAt := utils.FormatIndoTime(time.Now())
+
+			description := fmt.Sprintf(
+				"Data terkorup. Terdapat ketidaksesuaian pencatatan oleh user '%s' dengan ID '%d'. "+
+					"Ketidaksamaan hash terdeteksi pada %s WIB.",
+				user.Username,
+				user.ID,
+				detectedAt,
+			)
+
+			c.JSON(409, gin.H{
+				"status":      "corrupted",
+				"description": description,
+				"forensic_detail": gin.H{
+					"user_id":     user.ID,
+					"username":    user.Username,
+					"record_id":   ash.ID,
+					"detected_at": detectedAt,
+					"chain_index": i,
+					"prev_hash":   ash.PrevHash,
+					"hash":        ash.Hash,
+				},
 			})
 			return
 		}
@@ -80,5 +115,9 @@ func VerifyAshChain(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "intact",
 		"total":  len(ashes),
+		"message": fmt.Sprintf(
+			"Seluruh data forensik valid. %d catatan abu terikat sempurna dalam Seal of Ash.",
+			len(ashes),
+		),
 	})
 }
