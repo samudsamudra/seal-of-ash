@@ -14,7 +14,7 @@ Student of Software Engineering (RPL)
 Class: **XII RPL 5**  
 Year: **2026**
 
-Project ini dibuat ketika saya masih duduk di kelas XII RPL 5 sebagai bentuk eksplorasi serius terhadap:
+Project ini dibuat ketika saya masih duduk di kelas XII RPL sebagai bentuk eksplorasi serius terhadap:
 - Backend engineering
 - Sistem keuangan immutable
 - Digital forensics
@@ -129,3 +129,4 @@ Project ini dibuat sebagai:
 
 Jika kamu membaca ini, berarti Seal of Ash sudah menjalankan tugasnya:  
 **menjadi saksi atas kebenaran data.**
+
