@@ -8,6 +8,8 @@ import (
 	"seal-of-ash/internal/events"
 	"seal-of-ash/internal/models"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func StartWorker() {
@@ -35,6 +37,7 @@ func processEvent(e events.Event) {
 	hash := sha256.Sum256(raw)
 
 	record := models.ForensicAsh{
+		ID:         uuid.New().String(),
 		EntityType: e.Entity,
 		EntityID:   e.EntityID,
 		Action:     e.Type,

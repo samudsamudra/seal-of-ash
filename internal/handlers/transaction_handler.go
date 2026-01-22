@@ -5,7 +5,9 @@ import (
 	"seal-of-ash/internal/database"
 	"seal-of-ash/internal/events"
 	"seal-of-ash/internal/models"
+
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type CreateTransactionReq struct {
@@ -21,6 +23,7 @@ func CreateTransaction(c *gin.Context) {
 	}
 
 	tx := models.Transaction{
+		ID:        uuid.New().String(),
 		Amount:    req.Amount,
 		Type:      "normal",
 		CreatedBy: req.UserID,
@@ -30,9 +33,9 @@ func CreateTransaction(c *gin.Context) {
 
 	// kirim event ke forensic worker
 	events.EventBus <- events.Event{
-		Type:      "CREATE",
-		Entity:    "transaction",
-		EntityID:  tx.ID,
+		Type:     "CREATE",
+		Entity:   "transaction",
+		EntityID: tx.ID,
 		ActorID:  req.UserID,
 		IP:       c.ClientIP(),
 		UA:       c.Request.UserAgent(),

@@ -3,11 +3,11 @@ package models
 import "time"
 
 type ForensicAsh struct {
-	ID         uint      `gorm:"primaryKey"`
+	ID         string    `gorm:"type:char(36);primaryKey"`
 	EntityType string
-	EntityID   uint
+	EntityID   string
 	Action     string
-	Snapshot   []byte
+	Snapshot   []byte    `gorm:"type:longblob"`
 	ActorID    uint
 	IP         string
 	UserAgent  string
