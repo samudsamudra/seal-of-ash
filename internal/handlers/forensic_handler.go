@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"seal-of-ash/internal/database"
 	"seal-of-ash/internal/models"
@@ -43,6 +45,40 @@ func SummonAshes(c *gin.Context) {
 		"ip":        ash.IP,
 		"ua":        ash.UserAgent,
 		"hash":      ash.Hash,
+		"prev_hash": ash.PrevHash,
 		"created":   utils.FormatIndoTime(ash.CreatedAt),
+	})
+}
+
+func VerifyAshChain(c *gin.Context) {
+	var ashes []models.ForensicAsh
+	database.ForensicDB.Order("created_at asc").Find(&ashes)
+
+	prev := "GENESIS"
+
+	for i, ash := range ashes {
+		payload := append([]byte(prev), ash.Snapshot...)
+		payload = append(payload, []byte(ash.Action)...)
+		payload = append(payload, []byte(ash.EntityType)...)
+		payload = append(payload, []byte(ash.EntityID)...)
+
+		sum := sha256.Sum256(payload)
+		expected := hex.EncodeToString(sum[:])
+
+		if ash.Hash != expected {
+			c.JSON(500, gin.H{
+				"status": "corrupted",
+				"at":     i,
+				"id":     ash.ID,
+			})
+			return
+		}
+
+		prev = ash.Hash
+	}
+
+	c.JSON(200, gin.H{
+		"status": "intact",
+		"total":  len(ashes),
 	})
 }

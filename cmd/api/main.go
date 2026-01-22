@@ -44,5 +44,10 @@ func main() {
 		handlers.SummonAshes,
 	)
 
+	auth.GET("/ashes/verify",
+		middleware.RequireRole("forensic"),
+		handlers.VerifyAshChain,
+	)
+
 	r.Run(":" + config.Get("APP_PORT"))
 }

@@ -11,7 +11,7 @@ type ForensicAsh struct {
 	ActorID    uint
 	IP         string
 	UserAgent  string
-	Hash       string
-	PrevHash   string
+	Hash       string    `gorm:"size:64;not null"`
+	PrevHash   string    `gorm:"size:64;not null"`
 	CreatedAt  time.Time
 }

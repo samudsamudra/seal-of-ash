@@ -26,7 +26,7 @@ func processEvent(e events.Event) {
 	switch e.Entity {
 	case "transaction":
 		var tx models.Transaction
-		database.ActiveDB.First(&tx, e.EntityID)
+		database.ActiveDB.First(&tx, "id = ?", e.EntityID)
 		snapshot = tx
 	default:
 		return
@@ -34,7 +34,26 @@ func processEvent(e events.Event) {
 
 	raw, _ := json.Marshal(snapshot)
 
-	hash := sha256.Sum256(raw)
+	// ambil hash terakhir dari vault
+	var last models.ForensicAsh
+	prevHash := "GENESIS"
+
+	err := database.ForensicDB.
+		Order("created_at desc").
+		First(&last).Error
+
+	if err == nil {
+		prevHash = last.Hash
+	}
+
+	// build payload hash chain
+	payload := append([]byte(prevHash), raw...)
+	payload = append(payload, []byte(e.Type)...)
+	payload = append(payload, []byte(e.Entity)...)
+	payload = append(payload, []byte(e.EntityID)...)
+
+	sum := sha256.Sum256(payload)
+	hash := hex.EncodeToString(sum[:])
 
 	record := models.ForensicAsh{
 		ID:         uuid.New().String(),
@@ -45,7 +64,8 @@ func processEvent(e events.Event) {
 		ActorID:    e.ActorID,
 		IP:         e.IP,
 		UserAgent:  e.UA,
-		Hash:       hex.EncodeToString(hash[:]),
+		Hash:       hash,
+		PrevHash:   prevHash,
 		CreatedAt:  time.Now(),
 	}
 
