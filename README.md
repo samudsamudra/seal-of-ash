@@ -11,7 +11,7 @@ Project ini menggabungkan konsep sistem keuangan nyata dengan pendekatan digital
 
 **Yohanes Capelliou Samudra**  
 Student of Software Engineering (RPL)  
-Class: **XII RPL 5**  
+Class: **XII RPL**  
 Year: **2026**
 
 Project ini dibuat ketika saya masih duduk di kelas XII RPL sebagai bentuk eksplorasi serius terhadap:
@@ -129,4 +129,5 @@ Project ini dibuat sebagai:
 
 Jika kamu membaca ini, berarti Seal of Ash sudah menjalankan tugasnya:  
 **menjadi saksi atas kebenaran data.**
+
 
