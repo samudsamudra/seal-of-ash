@@ -3,10 +3,7 @@ package handlers
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"net/http"
-	"time"
-
 	"seal-of-ash/internal/database"
 	"seal-of-ash/internal/models"
 	"seal-of-ash/internal/utils"
@@ -54,14 +51,26 @@ func SummonAshes(c *gin.Context) {
 }
 
 func VerifyAshChain(c *gin.Context) {
+	// ambil semua forensic ash
 	var ashes []models.ForensicAsh
-	database.ForensicDB.Order("created_at asc, id asc").Find(&ashes)
+	database.ForensicDB.
+		Order("created_at asc, id asc").
+		Find(&ashes)
 
-	// kalau belum ada abu sama sekali
+	// hitung transaksi di ledger
+	var txCount int64
+	database.ActiveDB.
+		Model(&models.Transaction{}).
+		Count(&txCount)
+
+	// kalau vault kosong
 	if len(ashes) == 0 {
 		c.JSON(200, gin.H{
-			"status":  "empty",
-			"message": "The ash vault is silent. No records have been forged yet.",
+			"status":              "empty",
+			"message":             "Forensic vault belum memiliki catatan. Sistem forensik belum mulai merekam.",
+			"forensic_records":    0,
+			"ledger_transactions": txCount,
+			"note":                "Jumlah transaksi lebih banyak dari forensic record berarti ada transaksi yang dibuat sebelum sistem forensik aktif.",
 		})
 		return
 	}
@@ -69,7 +78,6 @@ func VerifyAshChain(c *gin.Context) {
 	prev := "GENESIS"
 
 	for i, ash := range ashes {
-		// bangun ulang hash dari data yang ada
 		payload := append([]byte(prev), ash.Snapshot...)
 		payload = append(payload, []byte(ash.Action)...)
 		payload = append(payload, []byte(ash.EntityType)...)
@@ -79,32 +87,13 @@ func VerifyAshChain(c *gin.Context) {
 		expected := hex.EncodeToString(sum[:])
 
 		if ash.Hash != expected {
-			// ambil data user pelaku
-			var user models.User
-			database.ActiveDB.First(&user, "id = ?", ash.ActorID)
-
-			detectedAt := utils.FormatIndoTime(time.Now())
-
-			description := fmt.Sprintf(
-				"Data terkorup. Terdapat ketidaksesuaian pencatatan oleh user '%s' dengan ID '%d'. "+
-					"Ketidaksamaan hash terdeteksi pada %s WIB.",
-				user.Username,
-				user.ID,
-				detectedAt,
-			)
-
 			c.JSON(409, gin.H{
-				"status":      "corrupted",
-				"description": description,
-				"forensic_detail": gin.H{
-					"user_id":     user.ID,
-					"username":    user.Username,
-					"record_id":   ash.ID,
-					"detected_at": detectedAt,
-					"chain_index": i,
-					"prev_hash":   ash.PrevHash,
-					"hash":        ash.Hash,
-				},
+				"status":              "corrupted",
+				"message":             "Integritas forensic vault rusak. Ada data yang dimodifikasi secara tidak sah.",
+				"forensic_records":    len(ashes),
+				"ledger_transactions": txCount,
+				"broken_at_index":     i,
+				"broken_record_id":    ash.ID,
 			})
 			return
 		}
@@ -112,12 +101,18 @@ func VerifyAshChain(c *gin.Context) {
 		prev = ash.Hash
 	}
 
-	c.JSON(200, gin.H{
-		"status": "intact",
-		"total":  len(ashes),
-		"message": fmt.Sprintf(
-			"Seluruh data forensik valid. %d catatan abu terikat sempurna dalam Seal of Ash.",
-			len(ashes),
-		),
-	})
+	// vault aman
+	response := gin.H{
+		"status":              "intact",
+		"message":             "Seluruh forensic record valid dan terikat oleh hash chain.",
+		"forensic_records":    len(ashes),
+		"ledger_transactions": txCount,
+	}
+
+	// kasih warning kalau tidak sinkron
+	if int64(len(ashes)) != txCount {
+		response["warning"] = "Jumlah forensic record tidak sama dengan jumlah transaksi ledger. Tidak semua transaksi tercatat dalam sistem forensik."
+	}
+
+	c.JSON(200, response)
 }

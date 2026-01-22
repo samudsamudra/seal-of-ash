@@ -16,6 +16,7 @@ func SeedUsers() {
 		{Username: "kasir", Role: "user"},
 		{Username: "forensic", Role: "forensic"},
 		{Username: "admin", Role: "admin"},
+		{Username: "supervisor", Role: "supervisor"},
 	}
 
 	for _, u := range users {

@@ -19,6 +19,7 @@ func main() {
 	database.ActiveDB.AutoMigrate(
 		&models.User{},
 		&models.Transaction{},
+		&models.CorrectionRequest{},
 	)
 
 	database.ForensicDB.AutoMigrate(
@@ -39,9 +40,19 @@ func main() {
 
 	auth.POST("/transactions", handlers.CreateTransaction)
 
+	auth.POST("/transactions/request-correction",
+		middleware.RequireRole("user"),
+		handlers.RequestCorrection,
+	)
+
+	auth.POST("/transactions/approve-correction/:id",
+		middleware.RequireRole("supervisor"),
+		handlers.ApproveCorrection,
+	)
+
 	auth.POST("/ashes/summon",
 		middleware.RequireRole("forensic"),
-		handlers.SummonAshes,
+		handlers.SummonCase,
 	)
 
 	auth.GET("/ashes/verify",

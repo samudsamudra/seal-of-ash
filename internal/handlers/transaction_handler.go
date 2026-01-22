@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+
 	"seal-of-ash/internal/database"
 	"seal-of-ash/internal/events"
 	"seal-of-ash/internal/models"
@@ -12,7 +13,6 @@ import (
 
 type CreateTransactionReq struct {
 	Amount int64 `json:"amount"`
-	UserID uint  `json:"user_id"` // nanti dari JWT
 }
 
 func CreateTransaction(c *gin.Context) {
@@ -22,27 +22,38 @@ func CreateTransaction(c *gin.Context) {
 		return
 	}
 
+	// Ambil user ID dari JWT (AuthMiddleware)
+	uid := c.GetUint("user_id")
+
+	txID := uuid.New().String()
+
+	// Buat transaksi
 	tx := models.Transaction{
-		ID:        uuid.New().String(),
+		ID:        txID,
+		RootID:    txID, // root = dirinya sendiri
 		Amount:    req.Amount,
 		Type:      "normal",
-		CreatedBy: req.UserID,
+		CreatedBy: uid,
 	}
 
-	database.ActiveDB.Create(&tx)
+	if err := database.ActiveDB.Create(&tx).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create transaction"})
+		return
+	}
 
-	// kirim event ke forensic worker
+	// Kirim event ke forensic worker
 	events.EventBus <- events.Event{
 		Type:     "CREATE",
 		Entity:   "transaction",
 		EntityID: tx.ID,
-		ActorID:  req.UserID,
+		ActorID:  uid,
 		IP:       c.ClientIP(),
 		UA:       c.Request.UserAgent(),
 	}
 
-	c.JSON(201, gin.H{
-		"message": "Transaction forged into the ledger",
-		"id":      tx.ID,
+	c.JSON(http.StatusCreated, gin.H{
+		"id":       tx.ID,
+		"root_id":  tx.RootID,
+		"actor_id": uid,
 	})
 }
